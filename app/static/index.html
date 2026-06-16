@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Downloader → Copytele</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 540px; margin: 6vh auto; padding: 0 1rem; line-height: 1.5;
+    }
+    h1 { font-size: 1.4rem; }
+    label { display: block; margin: 1rem 0 .25rem; font-weight: 600; font-size: .9rem; }
+    input, select { width: 100%; padding: .6rem .7rem; font-size: 1rem; box-sizing: border-box;
+            border: 1px solid #8884; border-radius: 8px; background: transparent; color: inherit; }
+    button { margin-top: 1.25rem; width: 100%; padding: .7rem; font-size: 1rem;
+             border: 0; border-radius: 8px; background: #2563eb; color: #fff; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; }
+    button.secondary { background: transparent; color: #2563eb; border: 1px solid #2563eb55; margin-top: .75rem; }
+    #status { margin-top: 1.25rem; padding: .75rem; border-radius: 8px; display: none; word-break: break-word; }
+    #status.ok { display: block; background: #16a34a22; border: 1px solid #16a34a55; }
+    #status.err { display: block; background: #dc262622; border: 1px solid #dc262655; }
+    a { color: #2563eb; }
+    small { opacity: .7; }
+  </style>
+</head>
+<body>
+  <h1>🎵 Download to Copytele</h1>
+  <p><small>Paste a YouTube or TikTok video URL. Best-quality audio is extracted and uploaded to copytele.</small></p>
+
+  <label for="token">API token</label>
+  <input id="token" type="password" placeholder="your API_TOKEN" autocomplete="off" />
+
+  <label for="url">Video URL</label>
+  <input id="url" type="url" placeholder="https://..." autocomplete="off" />
+
+  <label for="format">Format</label>
+  <select id="format">
+    <option value="m4a">M4A (best — lossless for YouTube/TikTok AAC)</option>
+    <option value="opus">Opus (lossless if source is Opus)</option>
+    <option value="mp3">MP3 320 (re-encoded, max compatibility)</option>
+  </select>
+
+  <button id="go">Download &amp; Upload</button>
+  <button id="addShortcut" class="secondary">➕ Add iPhone Shortcut</button>
+  <div id="status"></div>
+  <p><small>On iPhone, tap “Add iPhone Shortcut”, then open the downloaded file in the
+  Shortcuts app. Requires <em>Settings → Shortcuts → Allow Untrusted Shortcuts</em> (one-time).
+  After that, share any YouTube/TikTok video → <strong>Save Music to Copytele</strong>.</small></p>
+
+  <script>
+    const tokenEl = document.getElementById('token');
+    const urlEl = document.getElementById('url');
+    const formatEl = document.getElementById('format');
+    const btn = document.getElementById('go');
+    const status = document.getElementById('status');
+
+    formatEl.value = localStorage.getItem('format') || 'm4a';
+    formatEl.addEventListener('change', () => localStorage.setItem('format', formatEl.value));
+
+    const addShortcutBtn = document.getElementById('addShortcut');
+
+    tokenEl.value = localStorage.getItem('apiToken') || '';
+    tokenEl.addEventListener('change', () => localStorage.setItem('apiToken', tokenEl.value));
+
+    addShortcutBtn.addEventListener('click', () => {
+      const token = tokenEl.value.trim();
+      if (!token) { show('err', 'Enter your API token first.'); return; }
+      localStorage.setItem('apiToken', token);
+      // Navigate so iOS offers to open the .shortcut file in the Shortcuts app.
+      window.location.href = '/shortcut?token=' + encodeURIComponent(token);
+    });
+
+    function show(kind, html) { status.className = kind; status.innerHTML = html; }
+
+    btn.addEventListener('click', async () => {
+      const token = tokenEl.value.trim();
+      const url = urlEl.value.trim();
+      if (!token || !url) { show('err', 'Token and URL are required.'); return; }
+      localStorage.setItem('apiToken', token);
+      btn.disabled = true; show('ok', 'Working… this can take a bit.');
+      try {
+        const res = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ url, format: formatEl.value }),
+        });
+        const data = await res.json();
+        if (!res.ok) { show('err', '❌ ' + (data.detail || res.statusText)); }
+        else {
+          show('ok', '✅ Uploaded: <strong>' + data.filename + '</strong><br><a href="' +
+            data.copytele_url + '" target="_blank" rel="noopener">' + data.copytele_url + '</a>');
+          urlEl.value = '';
+        }
+      } catch (e) {
+        show('err', '❌ ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

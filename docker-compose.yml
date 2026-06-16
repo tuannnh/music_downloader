@@ -1,0 +1,21 @@
+services:
+  music-downloader:
+    # Local dev: `docker compose up --build` builds + tags as music-downloader:local.
+    # Server (CI deploy): set MUSIC_IMAGE=ghcr.io/<owner>/<repo>:latest in .env,
+    # then `docker compose pull && docker compose up -d` runs the pushed image.
+    image: ${MUSIC_IMAGE:-music-downloader:local}
+    build: .
+    container_name: music-downloader
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Bind to localhost only; your reverse proxy (the one fronting copytele)
+      # forwards music.zum.vn -> 127.0.0.1:8077. Change/remove as needed.
+      - "127.0.0.1:8077:8000"
+    # If your reverse proxy runs in Docker on a shared network instead, drop the
+    # "ports" block above and uncomment:
+    # networks:
+    #   - web
+# networks:
+#   web:
+#     external: true

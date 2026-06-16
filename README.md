@@ -139,10 +139,12 @@ No ffmpeg/yt-dlp needed here — MeTube does that work.
 `.github/workflows/deploy.yml` runs on every push to `main`:
 
 1. **build-and-push** — builds the image and pushes it to GHCR as
-   `ghcr.io/<owner>/<repo>:latest` (and a `:sha-<commit>` tag). Uses the built-in
-   `GITHUB_TOKEN`, no extra secret needed.
-2. **deploy** — SSHes to your server and runs `docker compose pull && up -d`.
-   Only runs when the repo variable `DEPLOY_ENABLED=true` is set.
+   `ghcr.io/tuannnh/music_downloader:latest` (and a `:sha-<commit>` tag). Uses
+   the built-in `GITHUB_TOKEN`, no extra secret needed. The package is **public**,
+   so it can be pulled anywhere without authentication.
+2. **deploy** — SSHes to your server and runs `docker compose pull && up -d`
+   (no docker login needed, the image is public). Only runs when the repo
+   variable `DEPLOY_ENABLED=true` is set.
 
 **One-time GitHub setup** (repo → Settings → Secrets and variables → Actions):
 
@@ -158,11 +160,10 @@ No ffmpeg/yt-dlp needed here — MeTube does that work.
 **One-time server setup:** put `docker-compose.yml` + a filled `.env` in
 `DEPLOY_PATH`, and add to that `.env`:
 ```
-MUSIC_IMAGE=ghcr.io/<owner>/<repo>:latest
+MUSIC_IMAGE=ghcr.io/tuannnh/music_downloader:latest
 ```
-so `docker compose pull` fetches the CI-built image. The deploy logs in to GHCR
-with the workflow token; alternatively make the GHCR package public (repo →
-Packages → package settings) and drop the login.
+so `docker compose pull` fetches the CI-built image. The image is public, so no
+registry login is required on the server.
 
 > This project isn't a git repo yet. To use the workflow:
 > `git init && git add -A && git commit -m "init"`, create a GitHub repo, then

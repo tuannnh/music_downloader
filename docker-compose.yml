@@ -1,8 +1,8 @@
 services:
   music-downloader:
     # Local dev: `docker compose up --build` builds + tags as music-downloader:local.
-    # Server (CI deploy): set MUSIC_IMAGE=ghcr.io/<owner>/<repo>:latest in .env,
-    # then `docker compose pull && docker compose up -d` runs the pushed image.
+    # Server (CI deploy): set MUSIC_IMAGE=ghcr.io/tuannnh/music_downloader:latest
+    # in .env, then `docker compose pull && docker compose up -d` runs it.
     image: ${MUSIC_IMAGE:-music-downloader:local}
     build: .
     container_name: music-downloader

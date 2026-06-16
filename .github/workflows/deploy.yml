@@ -54,7 +54,6 @@ jobs:
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     permissions:
       contents: read
-      packages: read
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
@@ -63,10 +62,10 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          # Image is public on GHCR, so no docker login is needed to pull.
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             docker compose pull
             docker compose up -d
             docker image prune -f

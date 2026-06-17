@@ -1,0 +1,22 @@
+services:
+  music-downloader:
+    build: .
+    container_name: music-downloader
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    # Real values live in .env (gitignored). Compose substitutes them here, so no
+    # secrets are committed. Use copytele's DIRECT origin (LAN IP:port), NOT the
+    # public Cloudflare URL — Cloudflare 524-times-out / caps large uploads.
+    environment:
+      COPYTELE_UPLOAD_URL: "${COPYTELE_UPLOAD_URL:-http://copytele:3923/music/}"
+      COPYTELE_PW: "${COPYTELE_PW:-}"
+      OVERWRITE: "${OVERWRITE:-false}"
+      # Cookies for TikTok / restricted YouTube. Path is INSIDE the container;
+      # see the volume mount below. Leave unset to disable.
+      COOKIES_FILE: "/cookies/cookies.txt"
+    volumes:
+      # Drop a Netscape-format cookies.txt here to enable the TikTok fallback.
+      # Comment this out if you don't use cookies.
+      - ./cookies:/cookies:ro
+    # Point nginx-proxy-manager at this container on port 8080.

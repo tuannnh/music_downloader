@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+/tmp/
+.uv/
+
+# Secrets / session data — never commit
+tiktok_cookies.txt
+cookies.txt
+cookies/
+*.cookies.txt
+
+# Jupyter checkpoints (can snapshot .env!) and editor/tool state
+.ipynb_checkpoints/
+.claude/

@@ -1,0 +1,21 @@
+[project]
+name = "music-downloader"
+version = "0.1.0"
+description = "Download best-quality audio from YouTube/TikTok and push it to a copytele (copyparty) volume."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "yt-dlp>=2024.5.27",
+    "mutagen>=1.47",
+    # Enables yt-dlp browser impersonation — required for TikTok (avoids 403s
+    # and the JS challenge, and returns proper audio-bearing formats).
+    "curl-cffi>=0.7",
+    "httpx>=0.27",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "pydantic-settings>=2.2",
+]
+
+[tool.uv]
+package = false

@@ -1,0 +1,14 @@
+# Keep the build context (and image) small + secret-free.
+.venv/
+.git/
+.github/
+.env
+tiktok_cookies.txt
+cookies.txt
+cookies/
+__pycache__/
+*.pyc
+/tmp/
+*.md
+.dockerignore
+.gitignore

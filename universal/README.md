@@ -38,22 +38,38 @@ URL ─► FastAPI ─┬─ type=video ─► yt-dlp (+ffmpeg)         ─┐
 
 > ⚠️ Run with a **single uvicorn worker** — the job queue is in-process.
 
-## Cookies (optional — only for private / login-walled content)
+## Cookies
 
-Cookies are **not required** for public profiles/posts — leave them out and downloads
-are attempted anonymously. Add them only if a specific **private** or login-walled item
-fails. Export a **Netscape `cookies.txt`** from a logged-in browser (e.g. the
-"Get cookies.txt" extension) and drop one file per platform into the mounted `cookies/`
-dir, named by platform:
+- **TikTok**: usually works **without** cookies.
+- **Instagram / Facebook**: redirect anonymous requests to a login page, so they need a
+  **logged-in session cookie even for *public* profiles**. (Recommended: use a throwaway /
+  secondary account — the downloader acts as that session and is subject to its rate limits.)
 
+Export a **Netscape `cookies.txt`** from a logged-in browser (e.g. the "Get cookies.txt"
+extension). Provide it per platform in whichever form is convenient — resolution order is
+`*_COOKIES_B64` → `*_COOKIES` → a mounted `<platform>.txt` file:
+
+**A) base64 env var (recommended for Portainer / Infisical — single line, no host files):**
+
+```bash
+base64 -w0 instagram_cookies.txt    # paste the output as the env var value
 ```
-cookies/instagram.txt     # only if a private IG item needs login
-cookies/facebook.txt      # only if a private FB item needs login
-cookies/tiktok.txt         # rarely needed
-```
 
-Each is used automatically for that platform when present, and silently ignored when
-missing. TikTok is also subject to occasional IP-level WAF blocks (transient — retry later).
+| Env var | Holds |
+|---|---|
+| `INSTAGRAM_COOKIES_B64` | base64 of instagram cookies.txt |
+| `FACEBOOK_COOKIES_B64` | base64 of facebook cookies.txt |
+| `TIKTOK_COOKIES_B64` | base64 of tiktok cookies.txt (optional) |
+
+Store these in **Infisical** and inject them into the Portainer stack like the copytele
+secrets. `*_COOKIES` (raw Netscape text) also works if you can paste multi-line.
+
+**B) mounted file** — drop `cookies/<platform>.txt` and enable the `./cookies:/cookies:ro`
+mount in `docker-compose.universal.yml` (`COOKIES_DIR=/cookies`).
+
+Cookies are written to a private temp file (0600) and used by both yt-dlp (video) and
+gallery-dl (photos). Missing cookies are silently ignored. TikTok is also subject to
+occasional IP-level WAF blocks (transient — retry later).
 
 ## Run with Docker
 

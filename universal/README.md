@@ -38,20 +38,22 @@ URL ─► FastAPI ─┬─ type=video ─► yt-dlp (+ffmpeg)         ─┐
 
 > ⚠️ Run with a **single uvicorn worker** — the job queue is in-process.
 
-## Cookies (per platform — required for Instagram & Facebook)
+## Cookies (optional — only for private / login-walled content)
 
-Instagram and Facebook block anonymous downloads. Export a **Netscape `cookies.txt`**
-from a logged-in browser (e.g. the "Get cookies.txt" extension) and drop one file per
-platform into the mounted `cookies/` dir, named by platform:
+Cookies are **not required** for public profiles/posts — leave them out and downloads
+are attempted anonymously. Add them only if a specific **private** or login-walled item
+fails. Export a **Netscape `cookies.txt`** from a logged-in browser (e.g. the
+"Get cookies.txt" extension) and drop one file per platform into the mounted `cookies/`
+dir, named by platform:
 
 ```
-cookies/instagram.txt     # required for Instagram
-cookies/facebook.txt      # required for Facebook
-cookies/tiktok.txt        # optional (TikTok usually works without)
+cookies/instagram.txt     # only if a private IG item needs login
+cookies/facebook.txt      # only if a private FB item needs login
+cookies/tiktok.txt         # rarely needed
 ```
 
-Each is used automatically for that platform when present, ignored when missing.
-TikTok is still subject to occasional IP-level WAF blocks (transient — retry later).
+Each is used automatically for that platform when present, and silently ignored when
+missing. TikTok is also subject to occasional IP-level WAF blocks (transient — retry later).
 
 ## Run with Docker
 

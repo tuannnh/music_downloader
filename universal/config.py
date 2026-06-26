@@ -20,9 +20,10 @@ class Settings(BaseSettings):
     # Where downloads are buffered before upload. Cleared after each job.
     download_dir: str = "/tmp/universal_downloader"
 
-    # Directory holding per-platform Netscape cookies files, named
-    # "<platform>.txt" (instagram.txt, facebook.txt, tiktok.txt). Instagram &
-    # Facebook generally REQUIRE valid cookies; TikTok usually does not.
+    # Directory holding OPTIONAL per-platform Netscape cookies files, named
+    # "<platform>.txt" (instagram.txt, facebook.txt, tiktok.txt). Public
+    # profiles/posts download without cookies; add a file only for a private /
+    # login-walled item. Missing files are silently ignored.
     cookies_dir: str = "/cookies"
 
     # Keep at most this many finished jobs in memory for status lookups.

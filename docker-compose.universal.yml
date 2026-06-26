@@ -18,8 +18,9 @@ services:
       COPYTELE_PW: "${COPYTELE_PW:-}"
       OVERWRITE: "${OVERWRITE:-false}"
       COOKIES_DIR: "/cookies"
-    volumes:
-      # Per-platform Netscape cookies: instagram.txt, facebook.txt (required for
-      # those), tiktok.txt (optional). Export from a logged-in browser.
-      - ./cookies:/cookies:ro
+    # Cookies are OPTIONAL — public profiles/posts download anonymously. Only if a
+    # PRIVATE / login-walled item fails, create ./cookies/ with per-platform files
+    # (instagram.txt, facebook.txt, tiktok.txt) and uncomment the mount below.
+    # volumes:
+    #   - ./cookies:/cookies:ro
     # Point nginx-proxy-manager at this container on port 8081.

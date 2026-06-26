@@ -1,0 +1,25 @@
+services:
+  universal-downloader:
+    # Pull the published image, or swap for `build:` below to build locally.
+    image: ghcr.io/tuannnh/universal_downloader:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.universal
+    container_name: universal_downloader
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    # Real values live in .env (gitignored). Use copytele's DIRECT origin
+    # (LAN IP:port), NOT the public Cloudflare URL — Cloudflare 524-times-out /
+    # caps large uploads. Base ends in source/ → files land in
+    # source/<platform>/<videos|photos>/.
+    environment:
+      COPYTELE_UPLOAD_URL: "${COPYTELE_UPLOAD_URL:-http://copytele:3923/source/}"
+      COPYTELE_PW: "${COPYTELE_PW:-}"
+      OVERWRITE: "${OVERWRITE:-false}"
+      COOKIES_DIR: "/cookies"
+    volumes:
+      # Per-platform Netscape cookies: instagram.txt, facebook.txt (required for
+      # those), tiktok.txt (optional). Export from a logged-in browser.
+      - ./cookies:/cookies:ro
+    # Point nginx-proxy-manager at this container on port 8081.

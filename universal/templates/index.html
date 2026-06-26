@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Universal → copytele</title>
+  <style>
+    :root { color-scheme: dark light; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      max-width: 640px; margin: 0 auto; padding: 2rem 1rem;
+      background: #0f1115; color: #e8e8ea;
+    }
+    h1 { font-size: 1.4rem; }
+    .sub { color: #9aa0a6; font-size: .85rem; margin-top: -.4rem; }
+    form { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.5rem 0; }
+    input[type=url] {
+      flex: 1 1 100%; padding: .8rem 1rem; border-radius: 10px;
+      border: 1px solid #2a2e37; background: #181b21; color: inherit; font-size: 1rem;
+    }
+    .seg { display: flex; gap: .25rem; background: #181b21; border: 1px solid #2a2e37;
+      border-radius: 10px; padding: .25rem; }
+    .seg label { flex: 1; text-align: center; padding: .55rem .4rem; border-radius: 8px;
+      cursor: pointer; font-size: .9rem; color: #9aa0a6; }
+    .seg input { display: none; }
+    .seg input:checked + span { color: #fff; }
+    .seg label:has(input:checked) { background: #2a2e37; }
+    button {
+      padding: .8rem 1.2rem; border: 0; border-radius: 10px; cursor: pointer;
+      background: #4c8bf5; color: #fff; font-size: 1rem; font-weight: 600;
+    }
+    button:disabled { opacity: .5; cursor: progress; }
+    #out { white-space: pre-wrap; padding: 1rem; border-radius: 10px;
+      background: #181b21; border: 1px solid #2a2e37; min-height: 1.5rem; font-size: .9rem; }
+    .ok { color: #6bd58f; } .err { color: #f08a8a; }
+    a { color: #7fb0ff; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>⬇️ Universal → copytele</h1>
+  <p class="sub">Paste a TikTok, Instagram or Facebook link. Saved to
+    <code>{{ target }}&lt;platform&gt;/&lt;videos|photos&gt;/</code></p>
+
+  <form id="f">
+    <input id="url" type="url" placeholder="https://… (TikTok / Instagram / Facebook)" required autofocus />
+    <div class="seg" role="radiogroup" aria-label="Media type">
+      <label><input type="radio" name="type" value="auto" checked /><span>Auto</span></label>
+      <label><input type="radio" name="type" value="video" /><span>🎬 Video</span></label>
+      <label><input type="radio" name="type" value="photo" /><span>🖼️ Photo</span></label>
+    </div>
+    <button id="go" type="submit">Save</button>
+  </form>
+
+  <div id="out">Ready.</div>
+
+  <script>
+    const f = document.getElementById('f');
+    const out = document.getElementById('out');
+    const go = document.getElementById('go');
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function renderDone(d) {
+      const links = (d.copytele_urls || [])
+        .map(u => `<a href="${u}">${u}</a>`).join('\n');
+      out.className = 'ok';
+      out.innerHTML =
+        `✅ Saved ${d.count} file(s): <b>${d.title || ''}</b>\n` +
+        `Folder: ${d.folder}\n${links}`;
+    }
+
+    async function poll(jobId) {
+      while (true) {
+        await sleep(1500);
+        const r = await fetch('/api/jobs/' + jobId);
+        if (!r.ok) throw new Error('job lookup failed');
+        const d = await r.json();
+        if (d.status === 'done') { renderDone(d); return; }
+        if (d.status === 'error') {
+          out.className = 'err'; out.textContent = '❌ ' + (d.error || 'Failed');
+          return;
+        }
+        out.className = '';
+        out.textContent = (d.status === 'running' ? '⏳ Downloading & uploading…' : '🕒 Queued…');
+      }
+    }
+
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = document.getElementById('url').value.trim();
+      const type = document.querySelector('input[name=type]:checked').value;
+      if (!url) return;
+      go.disabled = true; out.className = ''; out.textContent = '🕒 Queued…';
+      try {
+        const r = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, type })
+        });
+        const d = await r.json();
+        if (d.id) { await poll(d.id); }
+        else { out.className = 'err'; out.textContent = '❌ ' + (d.error || 'Failed to queue'); }
+      } catch (err) {
+        out.className = 'err'; out.textContent = '❌ ' + err;
+      } finally {
+        go.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

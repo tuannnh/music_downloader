@@ -17,5 +17,13 @@ dependencies = [
     "pydantic-settings>=2.2",
 ]
 
+[project.optional-dependencies]
+# Used only by the separate Universal Downloader app (universal/). gallery-dl
+# fetches photo posts/carousels for TikTok/Instagram/Facebook, which yt-dlp
+# cannot. Installed in Dockerfile.universal; the music image does not include it.
+universal = [
+    "gallery-dl>=1.27",
+]
+
 [tool.uv]
 package = false

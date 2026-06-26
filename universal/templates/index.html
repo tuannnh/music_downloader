@@ -9,7 +9,7 @@
     * { box-sizing: border-box; }
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      max-width: 640px; margin: 0 auto; padding: 2rem 1rem;
+      max-width: 720px; margin: 0 auto; padding: 2rem 1rem;
       background: #0f1115; color: #e8e8ea;
     }
     h1 { font-size: 1.4rem; }
@@ -30,17 +30,40 @@
       padding: .8rem 1.2rem; border: 0; border-radius: 10px; cursor: pointer;
       background: #4c8bf5; color: #fff; font-size: 1rem; font-weight: 600;
     }
+    button.secondary { background: #2a2e37; color: #cfd3da; font-weight: 500; padding: .5rem .9rem; }
     button:disabled { opacity: .5; cursor: progress; }
-    #out { white-space: pre-wrap; padding: 1rem; border-radius: 10px;
-      background: #181b21; border: 1px solid #2a2e37; min-height: 1.5rem; font-size: .9rem; }
-    .ok { color: #6bd58f; } .err { color: #f08a8a; }
+    #status { color: #9aa0a6; font-size: .9rem; min-height: 1.2rem; }
+    .err { color: #f08a8a; } .ok { color: #6bd58f; }
     a { color: #7fb0ff; word-break: break-all; }
+
+    .bar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: 1rem 0 .5rem; }
+    .bar .grow { flex: 1; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; }
+    .tile {
+      position: relative; border: 2px solid #2a2e37; border-radius: 12px; overflow: hidden;
+      background: #181b21; cursor: pointer; aspect-ratio: 1 / 1; display: flex;
+      align-items: center; justify-content: center;
+    }
+    .tile.sel { border-color: #4c8bf5; }
+    .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .tile .file { padding: .6rem; text-align: center; font-size: .8rem; color: #cfd3da; word-break: break-all; }
+    .tile .badge {
+      position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.6); color: #fff;
+      font-size: .7rem; padding: .1rem .4rem; border-radius: 6px;
+    }
+    .tile .check {
+      position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(0,0,0,.55); color: #fff; display: flex; align-items: center;
+      justify-content: center; font-size: .8rem; border: 1px solid rgba(255,255,255,.4);
+    }
+    .tile.sel .check { background: #4c8bf5; border-color: #4c8bf5; }
+    #result { margin-top: 1rem; white-space: pre-wrap; font-size: .9rem; }
   </style>
 </head>
 <body>
   <h1>⬇️ Universal → copytele</h1>
-  <p class="sub">Paste a TikTok, Instagram or Facebook link. Saved to
-    <code>{{ target }}&lt;platform&gt;/&lt;videos|photos&gt;/</code></p>
+  <p class="sub">Paste a TikTok, Instagram or Facebook link, preview the media, then pick what
+    to save to <code>{{ target }}&lt;platform&gt;/&lt;videos|photos&gt;/</code></p>
 
   <form id="f">
     <input id="url" type="url" placeholder="https://… (TikTok / Instagram / Facebook)" required autofocus />
@@ -49,61 +72,129 @@
       <label><input type="radio" name="type" value="video" /><span>🎬 Video</span></label>
       <label><input type="radio" name="type" value="photo" /><span>🖼️ Photo</span></label>
     </div>
-    <button id="go" type="submit">Save</button>
+    <button id="go" type="submit">Load</button>
   </form>
 
-  <div id="out">Ready.</div>
+  <div id="status">Ready.</div>
+
+  <div id="picker" style="display:none">
+    <div class="bar">
+      <strong id="ptitle" class="grow"></strong>
+      <button class="secondary" id="selAll" type="button">Select all</button>
+      <button class="secondary" id="selNone" type="button">Select none</button>
+      <button id="save" type="button">Save selected</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div id="result"></div>
 
   <script>
-    const f = document.getElementById('f');
-    const out = document.getElementById('out');
-    const go = document.getElementById('go');
+    const $ = (id) => document.getElementById(id);
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const fmtSize = (b) => b >= 1e6 ? (b/1e6).toFixed(1)+' MB' : Math.max(1, Math.round(b/1e3))+' KB';
 
-    function renderDone(d) {
-      const links = (d.copytele_urls || [])
-        .map(u => `<a href="${u}">${u}</a>`).join('\n');
-      out.className = 'ok';
-      out.innerHTML =
-        `✅ Saved ${d.count} file(s): <b>${d.title || ''}</b>\n` +
-        `Folder: ${d.folder}\n${links}`;
+    let current = null;            // { id, items }
+    const selected = new Set();
+
+    function setStatus(msg, cls='') { const s=$('status'); s.className=cls; s.textContent=msg; }
+
+    function renderPicker(job) {
+      current = { id: job.id, items: job.items };
+      selected.clear();
+      $('ptitle').textContent = `${job.platform}/${job.media_type} — ${job.count} item(s)`;
+      const grid = $('grid');
+      grid.innerHTML = '';
+      job.items.forEach((it) => {
+        selected.add(it.index);
+        const tile = document.createElement('div');
+        tile.className = 'tile sel';
+        tile.dataset.index = it.index;
+        const inner = it.kind === 'image'
+          ? `<img loading="lazy" src="/api/jobs/${job.id}/file/${it.index}" alt="">`
+          : `<div class="file">${it.kind === 'video' ? '🎬' : '📄'}<br>${it.filename}<br>${fmtSize(it.size)}</div>`;
+        tile.innerHTML = `${inner}<span class="badge">${it.kind}</span><span class="check">✓</span>`;
+        tile.addEventListener('click', () => {
+          const i = it.index;
+          if (selected.has(i)) { selected.delete(i); tile.classList.remove('sel'); }
+          else { selected.add(i); tile.classList.add('sel'); }
+          updateSaveLabel();
+        });
+        grid.appendChild(tile);
+      });
+      $('picker').style.display = '';
+      updateSaveLabel();
     }
 
-    async function poll(jobId) {
+    function updateSaveLabel() { $('save').textContent = `Save selected (${selected.size})`; }
+    function setAll(on) {
+      document.querySelectorAll('.tile').forEach(t => {
+        const i = Number(t.dataset.index);
+        if (on) { selected.add(i); t.classList.add('sel'); }
+        else { selected.delete(i); t.classList.remove('sel'); }
+      });
+      updateSaveLabel();
+    }
+    $('selAll').onclick = () => setAll(true);
+    $('selNone').onclick = () => setAll(false);
+
+    async function pollReady(jobId) {
       while (true) {
         await sleep(1500);
         const r = await fetch('/api/jobs/' + jobId);
         if (!r.ok) throw new Error('job lookup failed');
         const d = await r.json();
-        if (d.status === 'done') { renderDone(d); return; }
-        if (d.status === 'error') {
-          out.className = 'err'; out.textContent = '❌ ' + (d.error || 'Failed');
-          return;
-        }
-        out.className = '';
-        out.textContent = (d.status === 'running' ? '⏳ Downloading & uploading…' : '🕒 Queued…');
+        if (d.status === 'ready') return d;
+        if (d.status === 'error') { setStatus('❌ ' + (d.error || 'Failed'), 'err'); return null; }
+        setStatus(d.status === 'running' ? '⏳ Downloading media…' : '🕒 Queued…');
       }
     }
 
-    f.addEventListener('submit', async (e) => {
+    $('f').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const url = document.getElementById('url').value.trim();
+      const url = $('url').value.trim();
       const type = document.querySelector('input[name=type]:checked').value;
       if (!url) return;
-      go.disabled = true; out.className = ''; out.textContent = '🕒 Queued…';
+      $('go').disabled = true; $('picker').style.display = 'none'; $('result').textContent = '';
+      setStatus('🕒 Queued…');
       try {
-        const r = await fetch('/api/download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const r = await fetch('/api/prepare', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, type })
         });
         const d = await r.json();
-        if (d.id) { await poll(d.id); }
-        else { out.className = 'err'; out.textContent = '❌ ' + (d.error || 'Failed to queue'); }
+        if (!d.id) { setStatus('❌ ' + (d.error || 'Failed to queue'), 'err'); return; }
+        const ready = await pollReady(d.id);
+        if (ready) { setStatus(`✅ Loaded ${ready.count} item(s) — pick what to save.`, 'ok'); renderPicker(ready); }
       } catch (err) {
-        out.className = 'err'; out.textContent = '❌ ' + err;
+        setStatus('❌ ' + err, 'err');
       } finally {
-        go.disabled = false;
+        $('go').disabled = false;
+      }
+    });
+
+    $('save').addEventListener('click', async () => {
+      if (!current || selected.size === 0) { setStatus('Pick at least one item first.', 'err'); return; }
+      $('save').disabled = true;
+      setStatus('⏳ Uploading ' + selected.size + ' item(s) to copytele…');
+      try {
+        const r = await fetch(`/api/jobs/${current.id}/commit`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ indices: [...selected] })
+        });
+        const d = await r.json();
+        if (d.status === 'done') {
+          const links = (d.copytele_urls || []).map(u => `<a href="${u}">${u}</a>`).join('\n');
+          setStatus(`✅ Saved ${d.count} item(s) to ${d.folder}`, 'ok');
+          $('result').innerHTML = links;
+          $('picker').style.display = 'none';
+        } else {
+          setStatus('❌ ' + (d.error || 'Upload failed'), 'err');
+        }
+      } catch (err) {
+        setStatus('❌ ' + err, 'err');
+      } finally {
+        $('save').disabled = false;
       }
     });
   </script>

@@ -21,8 +21,13 @@ URL ─► FastAPI ─┬─ type=video ─► yt-dlp (+ffmpeg)         ─┐
 
 - **Videos** use **yt-dlp** (browser-impersonation on for TikTok).
 - **Photos** use **gallery-dl** (yt-dlp can't fetch Facebook/Instagram photos).
-- `type` is `auto` (inferred from the URL), `video`, or `photo`. Photo posts /
-  carousels / slideshows upload **all** their files.
+- `type` is `auto` (inferred from the URL), `video`, or `photo`.
+
+**Two ways to save:**
+- **Web UI — preview & pick:** loading a URL downloads the media to the server and shows
+  each item as a **thumbnail**. For a multi-photo post/carousel you tick the ones you want
+  and only those upload to copytele; the rest are discarded. (Flow: `prepare → pick → commit`.)
+- **iOS Shortcut / `/api/save`:** one-shot — downloads and uploads **every** file (no picking).
 
 ## Configuration
 
@@ -95,10 +100,13 @@ uv run uvicorn universal.main:app --host 0.0.0.0 --port 8081
 
 | Method | Path | Body / Query | Notes |
 |---|---|---|---|
-| `POST` | `/api/download` | JSON `{"url": "...", "type": "auto\|video\|photo"}` | Queues, returns job (202). Used by the UI. |
-| `POST` | `/api/download-form` | form `url`, `type` | Form-encoded variant. |
-| `GET`  | `/api/save?url=...&type=...` | `url`, `type`, optional `wait=1` | Easiest for iOS Shortcuts. |
-| `GET`  | `/api/jobs/{id}` | — | Poll job status. |
+| `POST` | `/api/prepare` | JSON `{"url","type"}` | **Preview flow:** download to server, no upload. Poll until `status:ready`. |
+| `GET`  | `/api/jobs/{id}/file/{i}` | — | Serves prepared item `i` (thumbnail source). |
+| `POST` | `/api/jobs/{id}/commit` | JSON `{"indices":[...]}` | Uploads the chosen items, then cleans up. |
+| `POST` | `/api/download` | JSON `{"url","type"}` | One-shot: queues download+upload of everything (202). |
+| `POST` | `/api/download-form` | form `url`, `type` | Form-encoded one-shot variant. |
+| `GET`  | `/api/save?url=...&type=...` | `url`, `type`, optional `wait=1` | One-shot; easiest for iOS Shortcuts. |
+| `GET`  | `/api/jobs/{id}` | — | Poll job status (`queued→running→ready` for prepare, `→done\|error`). |
 | `GET`  | `/healthz` | — | Health check. |
 
 Finished job (`/api/jobs/{id}` or `/api/save?wait=1`):

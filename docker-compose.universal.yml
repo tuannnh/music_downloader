@@ -18,9 +18,14 @@ services:
       COPYTELE_PW: "${COPYTELE_PW:-}"
       OVERWRITE: "${OVERWRITE:-false}"
       COOKIES_DIR: "/cookies"
-    # Cookies are OPTIONAL — public profiles/posts download anonymously. Only if a
-    # PRIVATE / login-walled item fails, create ./cookies/ with per-platform files
-    # (instagram.txt, facebook.txt, tiktok.txt) and uncomment the mount below.
+      # TikTok works anonymously. Instagram & Facebook need a logged-in session
+      # cookie even for PUBLIC profiles. Easiest: base64 a cookies.txt
+      # (`base64 -w0 cookies.txt`) and store it in Infisical, injected here:
+      INSTAGRAM_COOKIES_B64: "${INSTAGRAM_COOKIES_B64:-}"
+      FACEBOOK_COOKIES_B64: "${FACEBOOK_COOKIES_B64:-}"
+      TIKTOK_COOKIES_B64: "${TIKTOK_COOKIES_B64:-}"
+    # Alternative to the *_B64 env vars: mount cookies files (instagram.txt,
+    # facebook.txt, tiktok.txt) and rely on COOKIES_DIR=/cookies.
     # volumes:
     #   - ./cookies:/cookies:ro
     # Point nginx-proxy-manager at this container on port 8081.

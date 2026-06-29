@@ -58,15 +58,19 @@ def _download(url: str, media_type: str):
     if want == AUTO:
         want = infer_type(url)
 
-    if want == VIDEO:
-        return platform, "videos", download_video(url, cookies)
     if want == PHOTO:
         return platform, "photos", download_photos(url, cookies)
-    # Ambiguous: try video first, fall back to photos.
+
+    # VIDEO (explicit) or AUTO: try video, then fall back to photos — a TikTok
+    # "video" link is often actually a photo slideshow. If both fail, surface the
+    # original video error (it's the more relevant one for the user's choice).
     try:
         return platform, "videos", download_video(url, cookies)
-    except Exception:
-        return platform, "photos", download_photos(url, cookies)
+    except Exception as video_err:
+        try:
+            return platform, "photos", download_photos(url, cookies)
+        except Exception:
+            raise video_err
 
 
 def prepare(url: str, media_type: str = AUTO) -> dict:
